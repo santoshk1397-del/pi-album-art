@@ -1,113 +1,153 @@
 # pi-album-art
 
-A small wall-mounted screen that shows the album art of whatever you're
-playing on Spotify.
+A wall-mounted screen that shows the cover art of whatever you're currently
+playing.
+
+![status](https://img.shields.io/badge/platform-Raspberry%20Pi-c51a4a)
 
 ## How it works
 
-The Pi polls the Spotify Web API every few seconds and asks "what is this
-account playing right now?" The response contains the **actual artwork URL**
-for the current track, so the Pi just downloads that image and pushes it to
-the display. No matching by name, no guessing.
+**Spotify** exposes playback at the account level, so the Pi asks Spotify's
+servers "what is this account playing?" and gets back the real artwork URL.
+Playback can happen anywhere — phone, laptop, speaker — and the Pi is purely a
+display.
 
-Playback happens wherever you normally play it — your phone, your laptop,
-a speaker. The Pi is purely a display, which means it works no matter what
-device you're listening on.
+**YouTube Music has no equivalent API.** Nothing reports now-playing from the
+cloud, so the phone pushes it instead, to a small bridge running on the Pi.
+Those pushes carry title and artist but no image, so artwork is resolved
+through Spotify's search API.
 
 ```
-Spotify (any device)  ->  Web API /currently-playing  ->  Pi  ->  SPI display
+Spotify Web API ─────────────────────┐
+                                     ├──> display
+Android ──push──> bridge :8899 ──────┘
 ```
 
-Authentication is a one-time browser step on your laptop that produces a
-refresh token. The token doesn't expire, so the Pi runs headless forever after.
+## Two display options
 
-## Hardware
+| | React (HDMI) | Python (SPI) |
+|---|---|---|
+| Screen | Any HDMI monitor or small LCD | Cheap ST7789/ILI9341 module (~$10) |
+| Look | Blurred-art background, per-album colour tinting, progress bar, crossfades | Cover art, text fallback |
+| Runs on | Pi 3/4/5 comfortably | Anything, including Pi Zero 2 W |
+| Cost | Higher | Lower |
 
-- Raspberry Pi with Wi-Fi (Zero 2 W is plenty)
-- Small SPI TFT display, e.g. a 1.3"–2.4" ST7789 or ILI9341 module (~$8–15,
-  sold as "SPI LCD module")
+Both read the same sources. Pick one — or run the Python one on a spare Pi.
 
-### Wiring (typical ST7789 module)
+---
 
-| Display pin | Pi pin              |
-|-------------|----------------------|
-| VCC         | 3.3V                 |
-| GND         | GND                  |
-| SCL/SCLK    | GPIO 11 (SPI0 SCLK)  |
-| SDA/MOSI    | GPIO 10 (SPI0 MOSI)  |
-| RES/RST     | GPIO 25              |
-| DC          | GPIO 24              |
-| CS          | GPIO 8 (SPI0 CE0)    |
-| BL          | 3.3V                 |
+## Setup: React on an HDMI screen
 
-Pinouts vary between modules — check yours, and adjust `gpio_DC` / `gpio_RST`
-/ `width` / `height` at the top of `app/display_art.py` to match.
-
-## Setup
+Needs Raspberry Pi OS **Desktop** (not Lite) — it requires Chromium.
 
 ### 1. Create a Spotify app
 
-1. Go to https://developer.spotify.com/dashboard and create an app (free,
-   works with a free Spotify account).
-2. Add exactly this redirect URI: `http://127.0.0.1:8888/callback`
-3. Copy the client ID and client secret.
+1. Go to https://developer.spotify.com/dashboard and create an app.
+2. Add this redirect URI exactly: `http://127.0.0.1:5173/` (trailing slash
+   included; `127.0.0.1`, never `localhost`).
+3. Copy the **Client ID**. You do not need the secret — the web app uses PKCE.
 
-### 2. Authorize (on your laptop, not the Pi)
-
-```bash
-pip install requests
-python3 app/spotify_auth.py
-```
-
-It opens a browser, you approve, and it writes `config.json` containing your
-refresh token.
-
-### 3. Check it works before touching hardware
+### 2. Install on the Pi
 
 ```bash
-python3 app/test_nowplaying.py
-```
-
-Start a track in Spotify first. This prints the track, artist and artwork URL
-and saves the image to `app/nowplaying.jpg` — proving the whole API path works
-with no display attached.
-
-### 4. Install on the Pi
-
-```bash
-# copy the project + config.json to the Pi, then:
+git clone https://github.com/santoshk1397-del/pi-album-art.git ~/pi-album-art
 cd ~/pi-album-art
-chmod 600 config.json        # owner-only; it holds your credentials
+./install-kiosk.sh
+```
+
+That builds the app, installs the display server and bridge as services,
+disables screen blanking, and sets Chromium to launch fullscreen on boot.
+
+### 3. Authorize, once, on the Pi
+
+Reboot (or run `kiosk/start-kiosk.sh`). The setup screen appears — paste your
+Client ID and authorize.
+
+**This has to happen in the Pi's own browser.** The token lives in that
+browser's local storage, so authorizing on your laptop does not carry over.
+Plug in a keyboard for this one step.
+
+After that it runs unattended and refreshes its own token indefinitely.
+
+---
+
+## Setup: Python on an SPI panel
+
+Lighter, no browser, fine on a Pi Zero 2 W. See wiring and details below.
+
+### Wiring (typical ST7789 module)
+
+| Display pin | Pi pin |
+|---|---|
+| VCC | 3.3V |
+| GND | GND |
+| SCL/SCLK | GPIO 11 (SPI0 SCLK) |
+| SDA/MOSI | GPIO 10 (SPI0 MOSI) |
+| RES/RST | GPIO 25 |
+| DC | GPIO 24 |
+| CS | GPIO 8 (SPI0 CE0) |
+| BL | 3.3V |
+
+Pinouts vary — check yours and adjust `WIDTH`, `HEIGHT`, `GPIO_DC`, `GPIO_RST`
+at the top of `app/display_art.py`.
+
+### Steps
+
+This path uses the Authorization Code flow, so it needs the client secret and
+a one-time browser step on a machine that has one:
+
+```bash
+# on your laptop
+pip install requests
+python3 app/spotify_auth.py          # writes config.json
+```
+
+Add `http://127.0.0.1:8888/callback` as a redirect URI for this flow.
+
+```bash
+# on the Pi
+git clone https://github.com/santoshk1397-del/pi-album-art.git ~/pi-album-art
+cd ~/pi-album-art
+# copy config.json here, then:
+chmod 600 config.json
 ./install.sh
 sudo cp systemd/album-art.service /etc/systemd/system/
 sudo systemctl enable --now album-art.service
 ```
 
-Play something on Spotify. Art should appear within a few seconds.
+### Test it without hardware
+
+```bash
+python3 app/test_nowplaying.py       # prints the track, saves the artwork
+python3 app/display_art.py --preview # renders to a desktop window
+```
+
+---
+
+## YouTube Music
+
+See [bridge/README.md](bridge/README.md) for the Android setup. Short version:
+MacroDroid or Tasker watches the media session and POSTs title/artist to the
+bridge; artwork is looked up via Spotify search.
+
+Because that is a *search*, an obscure track can occasionally resolve to the
+wrong edition. Spotify playback does not have this problem — its artwork is
+exact.
 
 ## Notes
 
-- `config.json` holds credentials for your Spotify account. It's gitignored;
-  also `chmod 600` it on the Pi so only your user can read it. To revoke access
-  at any time: spotify.com → Account → Apps → Remove Access.
-- Artwork is cached in `~/.cache/album-art/` by album ID, so repeat plays and
-  reboots don't re-download.
-- Polling every 3s is well inside Spotify's rate limits. Raise `POLL_SECONDS`
-  in `app/display_art.py` if you want to be gentler.
-
-### Optional: make the Pi a Spotify speaker too
-
-If you also want the Pi to *play* the audio (so it shows up as a Spotify
-Connect target), install [raspotify](https://dtcooper.github.io/raspotify/).
-It's independent of this app — the display works either way.
+- `config.json` and `bridge/bridge-config.json` hold credentials. Both are
+  gitignored; `chmod 600` them on the Pi.
+- Revoke access anytime: spotify.com → Account → Apps → Remove Access.
+- Artwork is cached, so repeat plays and reboots don't re-download.
+- The bridge listens on your LAN only. Don't port-forward it.
 
 ## Troubleshooting
 
-- **Blank screen**: confirm SPI is on (`ls /dev/spidev*`), then check
-  `journalctl -u album-art -f`.
-- **`missing config.json`**: step 2 didn't run, or the file didn't get copied
-  to the project root on the Pi.
-- **401 errors in the log**: the client secret is wrong, or the app was
-  deleted in the Spotify dashboard. Re-run `spotify_auth.py`.
-- **Art never updates**: confirm the Spotify account you authorized is the
-  same one you're playing on.
+| Symptom | Check |
+|---|---|
+| `INVALID_CLIENT: Invalid redirect URI` | The URI must match exactly, including the trailing slash, and use `127.0.0.1` not `localhost` |
+| Kiosk shows an error page | `systemctl status display-server` — the browser may have started before the server |
+| Blank SPI screen | `ls /dev/spidev*` to confirm SPI is enabled, then `journalctl -u album-art -f` |
+| Build killed on the Pi | Out of RAM. Add swap, or run `npm run build` elsewhere and copy `web/dist` across |
+| Art never updates | Confirm the authorized Spotify account is the one actually playing |
