@@ -34,6 +34,43 @@ Android ──push──> bridge :8899 ──────┘
 
 Both read the same sources. Pick one — or run the Python one on a spare Pi.
 
+## Setup: an old tablet (no hardware to buy)
+
+The display is a pure client-side app — PKCE auth and the Spotify calls all
+happen in the browser, with no backend. So it can be hosted as a static site
+and opened on any device with a browser, including an old Android tablet.
+This is the cheapest build: no Pi, nothing to keep running.
+
+Spotify only accepts `http://` redirect URIs for loopback addresses, so the
+app has to be served over HTTPS. GitHub Pages does that for free.
+
+### 1. Enable Pages
+
+Repo → **Settings** → **Pages** → Source: **GitHub Actions**.
+
+Push to `main` and the included workflow builds and publishes to:
+
+```
+https://<your-username>.github.io/pi-album-art/
+```
+
+### 2. Add that URL as a redirect URI
+
+In the Spotify dashboard, add the Pages URL exactly as above, trailing slash
+included.
+
+### 3. Open it on the tablet
+
+Browse to the Pages URL, paste your Client ID, authorize. Then:
+
+- **Chrome → ⋮ → Add to Home screen** for a fullscreen, chrome-less launcher
+- Settings → Display → **Sleep → Never** (or Developer options → Stay awake
+  while charging)
+
+The build is transpiled down to ES2015, so it should run on older Android
+Chrome. If the tablet is old enough that Chrome itself is stuck several years
+back, this is the part most likely to break — check the browser console first.
+
 ## What to buy
 
 ### Recommended build — React on HDMI (~$95)

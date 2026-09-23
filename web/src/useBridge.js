@@ -14,16 +14,28 @@ export function useBridge(pollMs = 3000) {
   const [progressMs, setProgressMs] = useState(0);
   const anchor = useRef({ progressMs: 0, at: 0, isPlaying: false, durationMs: 0 });
 
+  // In a Spotify-only setup there is no bridge at all, so back off after a few
+  // failures instead of retrying against nothing every few seconds forever.
+  const misses = useRef(0);
+  const ticks = useRef(0);
+
   useEffect(() => {
     let cancelled = false;
 
     async function poll() {
+      // Once it's clearly absent, try roughly every tenth tick.
+      if (misses.current >= 3) {
+        ticks.current += 1;
+        if (ticks.current % 10 !== 0) return;
+      }
+
       try {
         const resp = await fetch(`${BRIDGE_URL}/api/state`);
         if (!resp.ok) throw new Error(String(resp.status));
         const { state } = await resp.json();
         if (cancelled) return;
 
+        misses.current = 0;
         setOnline(true);
 
         if (!state) {
@@ -57,6 +69,7 @@ export function useBridge(pollMs = 3000) {
         });
       } catch {
         if (!cancelled) {
+          misses.current += 1;
           setOnline(false);
           setTrack(null);
         }

@@ -9,7 +9,9 @@ const SCOPE = 'user-read-playback-state user-read-currently-playing';
 const AUTHORIZE_URL = 'https://accounts.spotify.com/authorize';
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
-export const REDIRECT_URI = `${window.location.origin}/`;
+// Derived from the build's base path so the same code works whether it's
+// served at the root (Pi kiosk) or under a subpath (GitHub Pages).
+export const REDIRECT_URI = `${window.location.origin}${import.meta.env.BASE_URL}`;
 
 export function getClientId() {
   return localStorage.getItem(CLIENT_ID_KEY) || '';
