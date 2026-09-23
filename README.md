@@ -34,6 +34,46 @@ Android ──push──> bridge :8899 ──────┘
 
 Both read the same sources. Pick one — or run the Python one on a spare Pi.
 
+## What to buy
+
+### Recommended build — React on HDMI (~$95)
+
+| Part | Cost | Notes |
+|---|---|---|
+| Raspberry Pi 4, 2GB | ~$45 | Runs Chromium comfortably and builds on-device. 4GB is wasted here. |
+| 5″ or 7″ HDMI **IPS** panel | ~$30–50 | Insist on IPS. TN panels wash out off-axis, which is how a wall display is always viewed. |
+| USB-C PSU, 3A | ~$8 | A real 3A supply — phone chargers cause undervoltage and random reboots. |
+| 32GB microSD, A1 or A2 | ~$8 | Slower cards make Chromium painful. |
+
+Skip the Pi 5: faster than needed, more power, and effectively requires active
+cooling. A fan on a wall display is a downgrade.
+
+### Minimal build — Python on SPI (~$37)
+
+| Part | Cost |
+|---|---|
+| Pi Zero 2 W | ~$15 |
+| 2″ ST7789 SPI module | ~$10 |
+| PSU + microSD | ~$12 |
+
+Smaller and lower-power, but a tiny screen, and no blurred background or
+per-album colour tinting.
+
+### Panel shape
+
+Album art is square, so the aspect ratio changes the result:
+
+- **16:9** — cover on the left, track details on the right. What the React
+  layout is tuned for.
+- **4:3 or square** — closer to a true art frame; the layout stacks and
+  centres automatically.
+
+Both are handled in CSS. Choose based on whether you want a *now-playing
+panel* or an *art frame*.
+
+> Some budget HDMI panels need a separate barrel-jack supply rather than
+> drawing power from the Pi. Check before ordering.
+
 ---
 
 ## Setup: React on an HDMI screen
