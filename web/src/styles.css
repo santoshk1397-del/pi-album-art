@@ -107,16 +107,6 @@ body {
   gap: clamp(6px, 1.2vmin, 14px);
 }
 
-.source {
-  font-size: clamp(0.62rem, 1.2vmin, 0.8rem);
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 clamp(2px, 0.8vmin, 8px);
-  transition: color 0.8s ease;
-}
-
 .title {
   font-family: 'Instrument Serif', ui-serif, Georgia, serif;
   font-weight: 400;

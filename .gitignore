@@ -1,7 +1,11 @@
-config.json
-bridge/bridge-config.json
-app/nowplaying.jpg
 node_modules/
 dist/
+.DS_Store
+*.local
+
+# Dead credential files from the removed Python tooling. Kept ignored so they
+# can never be committed, even though nothing reads them any more.
+config.json
+bridge/bridge-config.json
 __pycache__/
 *.pyc
