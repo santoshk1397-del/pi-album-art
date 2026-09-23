@@ -9,3 +9,7 @@ config.json
 bridge/bridge-config.json
 __pycache__/
 *.pyc
+
+# The 2.9MB source PNG is unused - the app loads the optimised .jpg. Git keeps
+# every version of a binary forever, so keep the big one out.
+web/public/not_playing.png

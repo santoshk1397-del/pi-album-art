@@ -3,6 +3,10 @@ import { beginLogin, completeLoginFromUrl, getClientId, isAuthorized, REDIRECT_U
 import { useNowPlaying } from './useNowPlaying';
 import { dominantColor, toAccent } from './palette';
 
+// Served straight from web/public/. BASE_URL keeps it correct whether the app
+// is hosted at the root or under a subpath.
+const IDLE_IMAGE = `${import.meta.env.BASE_URL}not_playing.jpg`;
+
 function formatTime(ms) {
   if (!ms || ms < 0) return '0:00';
   const total = Math.floor(ms / 1000);
@@ -83,6 +87,43 @@ function Login({ error }) {
   );
 }
 
+// Inline rather than a file in public/, so it needs no network request and no
+// base-path handling, and can pick up the theme's accent.
+function IdleCover() {
+  const grooves = [88, 80, 72, 64, 56, 48];
+  return (
+    <svg
+      className="cover cover-idle"
+      viewBox="0 0 240 240"
+      role="img"
+      aria-label="Nothing playing"
+    >
+      <defs>
+        <radialGradient id="sheen" cx="34%" cy="28%" r="78%">
+          <stop offset="0%" stopColor="#2b3038" />
+          <stop offset="100%" stopColor="#111419" />
+        </radialGradient>
+      </defs>
+      <rect width="240" height="240" fill="#0c0e11" />
+      <circle cx="120" cy="120" r="98" fill="url(#sheen)" />
+      {grooves.map((r) => (
+        <circle
+          key={r}
+          cx="120"
+          cy="120"
+          r={r}
+          fill="none"
+          stroke="#ffffff"
+          strokeOpacity="0.055"
+          strokeWidth="1"
+        />
+      ))}
+      <circle cx="120" cy="120" r="32" fill="var(--accent)" opacity="0.9" />
+      <circle cx="120" cy="120" r="4.5" fill="#0c0e11" />
+    </svg>
+  );
+}
+
 function Background({ src }) {
   // Keep the outgoing layer mounted underneath so the swap crossfades
   // instead of flashing the empty ground.
@@ -106,6 +147,9 @@ function Background({ src }) {
 function NowPlaying() {
   const { track, progressMs, error, ready } = useNowPlaying(3000);
   const [accent, setAccent] = useState(null);
+  // Falls back to the drawn placeholder if not_playing.png isn't there, so a
+  // missing file never shows a broken-image icon on a wall display.
+  const [idleImageOk, setIdleImageOk] = useState(true);
 
   useEffect(() => {
     setAccent(null);
@@ -124,11 +168,33 @@ function NowPlaying() {
     );
   }
 
+  // Same layout as a playing track, so the idle screen reads as deliberate
+  // rather than as a failure state.
   if (!track) {
     return (
-      <div className="state">
-        <p className="state-title">Nothing playing</p>
-        <p className="muted">Start a track on any device.</p>
+      <div className="stage" style={accent ? { '--accent': accent } : undefined}>
+        {idleImageOk && <Background src={IDLE_IMAGE} />}
+
+        <main className="now">
+          <div className="cover-wrap">
+            {idleImageOk ? (
+              <img
+                className="cover cover-photo"
+                src={IDLE_IMAGE}
+                alt=""
+                crossOrigin="anonymous"
+                onError={() => setIdleImageOk(false)}
+                onLoad={(e) => setAccent(toAccent(dominantColor(e.currentTarget)))}
+              />
+            ) : (
+              <IdleCover />
+            )}
+          </div>
+          <div className="meta">
+            <h1 className="title">Nothing playing</h1>
+            <p className="artist idle-hint">Start a track on any device</p>
+          </div>
+        </main>
       </div>
     );
   }
@@ -166,11 +232,11 @@ function NowPlaying() {
           <div className="progress">
             <div className="bar"><div className="fill" style={{ width: `${pct}%` }} /></div>
             <div className="times">
-              <span>{formatTime(progressMs)}</span>
-              <span className={track.isPlaying ? 'playing' : 'paused'}>
+              <span className="elapsed">{formatTime(progressMs)}</span>
+              <span className={`status ${track.isPlaying ? 'playing' : 'paused'}`}>
                 {track.isPlaying ? 'Playing' : 'Paused'}
               </span>
-              <span>{formatTime(track.durationMs)}</span>
+              <span className="total">{formatTime(track.durationMs)}</span>
             </div>
           </div>
         </div>

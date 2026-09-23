@@ -95,6 +95,28 @@ body {
   background: linear-gradient(140deg, #1d2025, #101216);
 }
 
+.cover-idle {
+  display: block;
+  animation: coverIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Album art is square; an arbitrary idle image is not. Keep its own aspect
+   ratio instead of cropping it to a square, and let it run bigger than a
+   cover since it is the only thing on screen. */
+.cover-photo {
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  object-fit: contain;
+  max-width: min(100%, 56vw);
+  max-height: min(86vh, 960px);
+}
+
+.idle-hint {
+  color: var(--ink-dim);
+  font-weight: 400;
+}
+
 @keyframes coverIn {
   from { opacity: 0; transform: scale(0.94); }
   to { opacity: 1; transform: scale(1); }
@@ -142,14 +164,15 @@ body {
 
 .progress {
   margin-top: clamp(10px, 2.5vmin, 26px);
+  width: 100%;
   max-width: 620px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .bar {
-  height: 5px;
+  height: clamp(6px, 1vmin, 10px);
   border-radius: 99px;
   background: rgba(255, 255, 255, 0.16);
   overflow: hidden;
@@ -165,9 +188,28 @@ body {
 .times {
   display: flex;
   justify-content: space-between;
-  font-size: clamp(0.7rem, 1.4vmin, 0.95rem);
+  align-items: baseline;
+  /* Without a gap the three labels butt together on a narrow layout and read
+     as one string: "0:29Paused2:16". */
+  gap: clamp(10px, 2vw, 24px);
+  font-size: clamp(0.78rem, 1.5vmin, 1rem);
   font-variant-numeric: tabular-nums;
   color: var(--ink-dim);
+}
+
+.times .elapsed,
+.times .total {
+  flex: 0 0 auto;
+}
+
+.times .status {
+  flex: 1 1 auto;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.85em;
+  white-space: nowrap;
 }
 
 .times .playing { color: var(--accent); }
@@ -182,8 +224,18 @@ body {
     justify-items: center;
     text-align: center;
   }
-  .meta { align-items: center; }
-  .progress { width: 100%; }
+  /* The grid centres its items, which makes .meta shrink to its content - so
+     give it a real width or the progress bar collapses to the title's width. */
+  .meta {
+    align-items: center;
+    width: min(100%, 560px);
+  }
+
+  /* Stacked layout: width is the scarce dimension, height is not. */
+  .cover-photo {
+    max-width: 94vw;
+    max-height: 62vh;
+  }
 }
 
 /* --- states ----------------------------------------------------------- */
