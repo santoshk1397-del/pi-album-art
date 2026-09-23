@@ -1,0 +1,4 @@
+requests
+Pillow
+luma.lcd
+luma.core

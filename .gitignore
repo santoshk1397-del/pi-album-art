@@ -1,0 +1,7 @@
+config.json
+bridge/bridge-config.json
+app/nowplaying.jpg
+node_modules/
+dist/
+__pycache__/
+*.pyc
