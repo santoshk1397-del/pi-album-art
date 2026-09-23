@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { beginLogin, completeLoginFromUrl, getClientId, isAuthorized, REDIRECT_URI, signOut } from './auth';
 import { useNowPlaying } from './useNowPlaying';
-import { useBridge } from './useBridge';
 import { dominantColor, toAccent } from './palette';
 
 function formatTime(ms) {
@@ -15,20 +14,19 @@ function Login({ error }) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Spotify rejects "localhost" for loopback redirects - it requires the
-  // literal IP, and the two are different origins anyway.
-  const wrongHost = window.location.hostname !== '127.0.0.1';
+  // Spotify rejects "localhost" outright for loopback redirects; it wants the
+  // literal IP. Any https host (GitHub Pages) is fine, so only flag this one.
+  const onLocalhost = window.location.hostname === 'localhost';
 
   return (
     <div className="setup">
       <div className="setup-card">
-        <p className="eyebrow">pi-album-art</p>
+        <p className="eyebrow">album art</p>
         <h1>Connect Spotify</h1>
 
-        {wrongHost && (
+        {onLocalhost && (
           <p className="warn">
-            You're on <code>{window.location.hostname}</code>. Spotify only accepts
-            <code>127.0.0.1</code> here &mdash; open{' '}
+            Spotify rejects <code>localhost</code>. Open{' '}
             <a href={`http://127.0.0.1:${window.location.port || 5173}/`}>
               http://127.0.0.1:{window.location.port || 5173}/
             </a>{' '}
@@ -105,39 +103,22 @@ function Background({ src }) {
   );
 }
 
-const SOURCE_LABELS = {
-  android: 'YouTube Music',
-  desktop: 'Desktop',
-  spotify: 'Spotify',
-};
-
 function NowPlaying() {
-  const spotify = useNowPlaying(3000);
-  const bridge = useBridge(3000);
+  const { track, progressMs, error, ready } = useNowPlaying(3000);
   const [accent, setAccent] = useState(null);
-  const imgRef = useRef(null);
-
-  // Spotify wins when it's actively playing - its metadata is richer and it
-  // carries real artwork. The bridge covers everything else.
-  const fromSpotify = Boolean(spotify.track?.isPlaying) || !bridge.track;
-  const track = fromSpotify ? spotify.track : bridge.track;
-  const progressMs = fromSpotify ? spotify.progressMs : bridge.progressMs;
-  const sourceLabel = fromSpotify
-    ? 'Spotify'
-    : SOURCE_LABELS[bridge.track?.source] || bridge.track?.source;
 
   useEffect(() => {
     setAccent(null);
   }, [track?.art]);
 
-  if (!spotify.ready) {
+  if (!ready) {
     return <div className="state"><span className="spinner" />Connecting</div>;
   }
 
-  if (spotify.error && !bridge.track) {
+  if (error) {
     return (
       <div className="state">
-        <p className="state-title">{spotify.error}</p>
+        <p className="state-title">{error}</p>
         <button onClick={() => { signOut(); window.location.reload(); }}>Sign in again</button>
       </div>
     );
@@ -164,7 +145,6 @@ function NowPlaying() {
           {track.art ? (
             <img
               key={track.art}
-              ref={imgRef}
               className="cover"
               src={track.art}
               alt=""
@@ -177,7 +157,6 @@ function NowPlaying() {
         </div>
 
         <div className="meta">
-          <p className="source">{sourceLabel}</p>
           <h1 key={track.id} className="title">{track.title}</h1>
           <p className="artist">{track.artist}</p>
           {track.album && track.album !== track.title && (
